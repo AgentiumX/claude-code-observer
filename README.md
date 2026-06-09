@@ -5,6 +5,8 @@ A desktop dashboard widget that monitors all your Claude Code sessions in real-t
 ![Status](https://img.shields.io/badge/platform-Windows%207%2F10%2F11-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+![Claude Code Observer screenshot](docs/screenshot.png)
+
 ## Features
 
 - **Real-time monitoring** — See all active Claude Code sessions at a glance
