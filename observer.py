@@ -23,7 +23,7 @@ HTML = r"""<!DOCTYPE html>
 
 html,body{
   width:100%;height:100%;overflow:hidden;
-  background:transparent;
+  background:rgba(10,10,20,1);
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','SF Pro Display',Roboto,sans-serif;
   color:#fff;user-select:none;
 }
@@ -32,7 +32,6 @@ html,body{
   width:100%;height:100vh;
   display:flex;flex-direction:column;
   background:rgba(10,10,20,0.65);
-  border-radius:18px;
   border:1px solid rgba(255,255,255,0.08);
   overflow:hidden;
 }
@@ -345,7 +344,7 @@ async function refresh() {
   } catch(e) {}
 }
 
-setInterval(refresh, 2000);
+setInterval(refresh, 800);
 
 window.addEventListener('pywebviewready', function() {
   refresh();
@@ -366,9 +365,12 @@ class Api:
         self._window = window_ref
 
     def get_sessions(self):
+        # Filter stale sessions in memory (read-only, never writes to file).
+        # File cleanup is handled by Node hooks on SessionStart.
+        stale_ids = set(self._state.get_stale_ids())
         sessions = self._state.get_sessions()
-        # Clean stale sessions periodically
-        self._state.cleanup_stale(max_age_hours=48)
+        if stale_ids:
+            sessions = [s for s in sessions if s.get('id') not in stale_ids]
         return sessions
 
     def move_window(self, dx, dy):
@@ -395,6 +397,7 @@ def main():
             pass
 
     state = SessionState()
+    state.cleanup_stale()  # Clean orphaned sessions on startup
     window_ref = [None]  # mutable ref for Api class
     api = Api(state, window_ref)
 

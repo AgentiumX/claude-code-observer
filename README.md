@@ -112,6 +112,17 @@ Add the hooks configuration. **Replace `/path/to/hooks` with the actual path to 
           }
         ]
       }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/path/to/hooks/on_permission_request.bat",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }
@@ -190,10 +201,11 @@ python observer.py
 | Hook Event | What It Tracks | Status Set |
 |---|---|---|
 | `SessionStart` | New session begins | `working` |
-| `Notification` | Claude needs human input | `waiting` |
+| `Notification` | Claude needs human input (permission / idle / MCP elicitation) | `waiting` |
+| `PermissionRequest` | A permission dialog appeared (tool needs approval) | `waiting` |
 | `Stop` | Claude finished a turn | `idle` |
 | `SessionEnd` | Session closed | _(removed)_ |
-| `PreToolUse` | Claude about to use a tool | `working` |
+| `PreToolUse` | Claude about to use a tool (`waiting` if `AskUserQuestion`) | `working` |
 | `PostToolUse` | Claude finished using a tool | `working` |
 | `UserPromptSubmit` | User sent a message | `working` |
 

@@ -7,6 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { execSync } = require('child_process');
 
 const STATE_DIR = path.join(os.homedir(), '.claude-observer');
 const STATE_FILE = path.join(STATE_DIR, 'sessions.json');
@@ -35,13 +36,38 @@ function writeState(state) {
 function getProjectName(cwd) {
   if (!cwd) return 'Unknown';
   try {
-    const { execSync } = require('child_process');
     const gitRoot = execSync('git rev-parse --show-toplevel', {
       cwd, encoding: 'utf8', timeout: 2000, stdio: ['pipe', 'pipe', 'pipe']
     }).trim();
     if (gitRoot) return path.basename(gitRoot);
   } catch {}
   return path.basename(cwd);
+}
+
+// Return the existing session, or create a minimal one if it's missing.
+// Hooks can fire without a prior SessionStart (e.g. hooks were configured
+// mid-session), so events like Notification/PreToolUse must still surface a
+// card instead of being silently dropped.
+function ensureSession(state, sessionId, cwd, now) {
+  let session = state.sessions[sessionId];
+  if (!session) {
+    session = {
+      id: sessionId,
+      cwd: cwd,
+      project_name: getProjectName(cwd),
+      session_title: sessionId.slice(0, 8),
+      status: 'working',
+      model: '',
+      source: '',
+      started_at: now,
+      updated_at: now,
+      last_tool: '',
+      stop_reason: '',
+      notification_message: ''
+    };
+    state.sessions[sessionId] = session;
+  }
+  return session;
 }
 
 async function readStdin() {
@@ -102,27 +128,29 @@ async function main() {
         started_at: now,
         updated_at: now,
         last_tool: '',
-        stop_reason: ''
+        stop_reason: '',
+        notification_message: ''
       };
       break;
     }
 
     case 'Notification': {
-      if (state.sessions[sessionId]) {
-        state.sessions[sessionId].status = 'waiting';
-        state.sessions[sessionId].updated_at = now;
-        state.sessions[sessionId].notification_message = input.message || '';
-      }
+      // Fires when Claude needs the user: an option choice or a tool-permission
+      // prompt. This is the real signal for "needs input" (there is no
+      // PermissionRequest hook). Auto-create the card if SessionStart was missed.
+      const session = ensureSession(state, sessionId, cwd, now);
+      session.status = 'waiting';
+      session.updated_at = now;
+      session.notification_message = input.message || 'Waiting for input';
       break;
     }
 
     case 'Stop': {
-      if (state.sessions[sessionId]) {
-        state.sessions[sessionId].status = 'idle';
-        state.sessions[sessionId].updated_at = now;
-        state.sessions[sessionId].stop_reason = input.stop_reason || '';
-        state.sessions[sessionId].notification_message = '';
-      }
+      const session = ensureSession(state, sessionId, cwd, now);
+      session.status = 'idle';
+      session.updated_at = now;
+      session.stop_reason = input.stop_reason || '';
+      session.notification_message = '';
       break;
     }
 
@@ -132,59 +160,50 @@ async function main() {
     }
 
     case 'PreToolUse': {
-      if (state.sessions[sessionId]) {
-        const toolName = input.tool_name || '';
-        LOG(`tool_name="${toolName}"`);
-        if (toolName === 'AskUserQuestion') {
-          state.sessions[sessionId].status = 'waiting';
-          state.sessions[sessionId].updated_at = now;
-          state.sessions[sessionId].notification_message = 'Waiting for user input';
-          state.sessions[sessionId].last_tool = toolName;
-          LOG(`set status=waiting (AskUserQuestion)`);
-        } else {
-          state.sessions[sessionId].status = 'working';
-          state.sessions[sessionId].updated_at = now;
-          state.sessions[sessionId].last_tool = toolName;
-          LOG(`set status=working`);
-        }
+      const session = ensureSession(state, sessionId, cwd, now);
+      const toolName = input.tool_name || '';
+      LOG(`tool_name="${toolName}"`);
+      if (toolName === 'AskUserQuestion') {
+        session.status = 'waiting';
+        session.notification_message = 'Waiting for user input';
+        LOG('set status=waiting (AskUserQuestion)');
+      } else {
+        session.status = 'working';
+        LOG('set status=working');
       }
+      session.updated_at = now;
+      session.last_tool = toolName;
       break;
     }
 
     case 'PostToolUse': {
-      if (state.sessions[sessionId]) {
-        const toolName = input.tool_name || '';
-        if (toolName === 'AskUserQuestion') {
-          // UserPromptSubmit fires when user responds in IDE, overwriting waiting.
-          // Re-set waiting here so the card turns red after the response is received.
-          state.sessions[sessionId].status = 'waiting';
-          state.sessions[sessionId].updated_at = now;
-          state.sessions[sessionId].notification_message = 'Waiting for user input';
-          state.sessions[sessionId].last_tool = toolName;
-        } else {
-          state.sessions[sessionId].status = 'working';
-          state.sessions[sessionId].updated_at = now;
-          state.sessions[sessionId].last_tool = toolName;
-        }
-      }
+      const session = ensureSession(state, sessionId, cwd, now);
+      const toolName = input.tool_name || '';
+      session.status = 'working';
+      session.updated_at = now;
+      session.last_tool = toolName;
       break;
     }
 
     case 'UserPromptSubmit': {
-      if (state.sessions[sessionId]) {
-        state.sessions[sessionId].status = 'working';
-        state.sessions[sessionId].updated_at = now;
-        state.sessions[sessionId].notification_message = '';
-      }
+      const session = ensureSession(state, sessionId, cwd, now);
+      session.status = 'working';
+      session.updated_at = now;
+      session.notification_message = '';
       break;
     }
 
     case 'PermissionRequest': {
-      if (state.sessions[sessionId]) {
-        state.sessions[sessionId].status = 'waiting';
-        state.sessions[sessionId].updated_at = now;
-        state.sessions[sessionId].notification_message = 'Needs approval for ' + (state.sessions[sessionId].last_tool || 'tool');
-      }
+      // A permission dialog appeared: Claude needs the user to approve a tool
+      // (e.g. an MCP tool or a Bash command not on the allow list). Real Claude
+      // Code hook event. This is the primary "needs your decision" signal.
+      const session = ensureSession(state, sessionId, cwd, now);
+      const toolName = input.tool_name || session.last_tool || 'tool';
+      session.status = 'waiting';
+      session.updated_at = now;
+      session.last_tool = toolName;
+      session.notification_message = 'Needs approval for ' + toolName;
+      LOG(`set status=waiting (PermissionRequest for ${toolName})`);
       break;
     }
 

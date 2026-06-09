@@ -6,7 +6,11 @@ Reads session state written by hook scripts and provides data to the viewer.
 import json
 import os
 import time
+from datetime import datetime
 from pathlib import Path
+
+# Sessions not updated within this window are considered stale and removed.
+STALE_AFTER_HOURS = 48
 
 
 class SessionState:
@@ -53,27 +57,42 @@ class SessionState:
         sessions = self.get_sessions()
         return sum(1 for s in sessions if s.get('status') == 'waiting')
 
-    def cleanup_stale(self, max_age_hours=24):
-        """Remove sessions that haven't been updated in max_age_hours."""
+    def get_stale_ids(self):
+        """Return IDs of stale sessions (not updated within STALE_AFTER_HOURS).
+
+        Read-only, never writes. Process-liveness checks were removed: hooks run
+        in a throwaway shell, so no PID we can capture identifies the live Claude
+        Code process. Time since last update is the only reliable signal.
+        """
         data = self._read_file()
         now = time.time()
-        to_remove = []
+        stale = []
         for sid, session in data.get('sessions', {}).items():
             try:
                 updated = session.get('updated_at', '')
-                # Parse ISO timestamp
-                from datetime import datetime
                 dt = datetime.fromisoformat(updated.replace('Z', '+00:00'))
                 age_hours = (now - dt.timestamp()) / 3600
-                if age_hours > max_age_hours:
-                    to_remove.append(sid)
+                if age_hours > STALE_AFTER_HOURS:
+                    stale.append(sid)
             except (ValueError, TypeError):
                 continue
-        for sid in to_remove:
-            del data['sessions'][sid]
-        if to_remove:
+        return stale
+
+    def cleanup_stale(self):
+        """One-time cleanup: remove stale sessions from file. Use only at startup."""
+        stale_ids = self.get_stale_ids()
+        if not stale_ids:
+            return 0
+        self._last_mtime = 0
+        data = self._read_file()
+        removed = 0
+        for sid in stale_ids:
+            if sid in data.get('sessions', {}):
+                del data['sessions'][sid]
+                removed += 1
+        if removed:
             self._write_state(data)
-        return len(to_remove)
+        return removed
 
     def _write_state(self, state):
         """Write state back to file (for cleanup operations)."""
