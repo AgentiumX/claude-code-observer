@@ -226,6 +226,21 @@ html,body{
   font-size:10px;color:rgba(255,180,180,0.7);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
+
+/* Card dismiss button */
+.card-close{
+  position:absolute;top:8px;right:8px;
+  width:18px;height:18px;border-radius:50%;
+  background:rgba(255,255,255,0.06);
+  border:none;color:rgba(255,255,255,0.35);
+  font-size:11px;line-height:18px;text-align:center;
+  cursor:pointer;opacity:0;
+  transition:opacity 0.2s,background 0.2s,color 0.2s;
+}
+.card:hover .card-close{opacity:1}
+.card-close:hover{
+  background:rgba(255,69,58,0.3);color:#FF6961;
+}
 </style>
 </head>
 <body>
@@ -301,6 +316,7 @@ function renderCard(s) {
     notify = '<div class="card-notify">💬 ' + escapeHtml(s.notification_message) + '</div>';
   }
   return '<div class="card" data-status="' + status + '">' +
+    '<button class="card-close" data-id="' + escapeHtml(s.id || '') + '" title="Dismiss">&#215;</button>' +
     '<div class="card-project">' + escapeHtml(s.project_name || 'Unknown') + '</div>' +
     '<div class="card-title">' + escapeHtml(s.session_title || s.id || '') + '</div>' +
     '<div class="card-meta">' +
@@ -344,6 +360,19 @@ async function refresh() {
   } catch(e) {}
 }
 
+// Delegated handler: dismiss a card when its close button is clicked.
+document.getElementById('sessions').addEventListener('click', async function(e) {
+  var btn = e.target.closest('.card-close');
+  if (!btn) return;
+  e.stopPropagation();
+  var id = btn.getAttribute('data-id');
+  if (!id) return;
+  try {
+    await pywebview.api.dismiss_session(id);
+    refresh();
+  } catch(e) {}
+});
+
 setInterval(refresh, 800);
 
 window.addEventListener('pywebviewready', function() {
@@ -372,6 +401,11 @@ class Api:
         if stale_ids:
             sessions = [s for s in sessions if s.get('id') not in stale_ids]
         return sessions
+
+    def dismiss_session(self, session_id):
+        # Remove a card from the dashboard. If the session is still active,
+        # the next hook event will recreate it.
+        return self._state.remove_session(session_id)
 
     def move_window(self, dx, dy):
         w = self._window[0]

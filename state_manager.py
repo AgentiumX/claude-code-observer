@@ -94,6 +94,20 @@ class SessionState:
             self._write_state(data)
         return removed
 
+    def remove_session(self, session_id):
+        """Remove a single session from the file. Returns True if it existed.
+
+        Triggered by the user dismissing a card. If the session is still active,
+        the next hook event will recreate it (accepted behavior).
+        """
+        self._last_mtime = 0
+        data = self._read_file()
+        if session_id in data.get('sessions', {}):
+            del data['sessions'][session_id]
+            self._write_state(data)
+            return True
+        return False
+
     def _write_state(self, state):
         """Write state back to file (for cleanup operations)."""
         try:
