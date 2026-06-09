@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+dist/
+build/
+*.spec
+.venv/
+venv/
+*.egg-info/
+.claude-observer/
