@@ -244,6 +244,54 @@ Sessions inactive for 48+ hours are automatically cleaned up.
 **Glass effect doesn't look right on Windows 7:**
 - Windows 7 uses a fallback renderer. The widget still works, but the frosted glass effect is simplified.
 
+## 远程 / 虚拟机会话（SSH 汇总）
+
+如果你的 Claude Code 运行在虚拟机（Ubuntu/Linux）上，可让其会话汇总到宿主机的 Observer。
+
+### VM 端
+
+1. 把本仓库的 `hooks/` 目录拷到 VM（需含 `claude_observer_hook.sh` 和 `claude_observer_helper.js`）。
+2. 赋予执行权限：
+
+   ```bash
+   chmod +x /path/to/hooks/claude_observer_hook.sh
+   ```
+
+3. 在 VM 的 `~/.claude/settings.json` 配置 hook，每个事件指向脚本并带事件名参数：
+
+   ```json
+   {
+     "hooks": {
+       "SessionStart":     [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh SessionStart" }] }],
+       "Notification":     [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh Notification" }] }],
+       "Stop":             [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh Stop" }] }],
+       "SessionEnd":       [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh SessionEnd" }] }],
+       "PreToolUse":       [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh PreToolUse" }] }],
+       "PostToolUse":      [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh PostToolUse" }] }],
+       "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh UserPromptSubmit" }] }],
+       "PermissionRequest":[{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh PermissionRequest" }] }]
+     }
+   }
+   ```
+
+### 宿主机端
+
+1. 确认宿主机能免密 SSH 登录 VM（`ssh user@host` 可直接进）。
+2. 创建 `~/.claude-observer/remotes.json`（参考仓库根目录 `remotes.example.json`）：
+
+   ```json
+   {
+     "remotes": [
+       { "name": "ubuntu-vm", "host": "192.168.1.50", "port": 22,
+         "user": "dev", "identity_file": "C:/Users/you/.ssh/id_rsa" }
+     ]
+   }
+   ```
+
+3. 启动 `ClaudeObserver.exe`。VM 会话会带来源徽标出现在小部件中。
+
+> Observer 对 VM 只读（仅 `cat` 会话文件），不修改 VM 上任何内容；不存储凭据，仅复用你已有的 SSH key。
+
 ## License
 
 MIT
