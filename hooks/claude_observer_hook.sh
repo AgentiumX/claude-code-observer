@@ -28,4 +28,5 @@ HELPER="$SCRIPT_DIR/claude_observer_helper.js"
 
 # stdin pipes straight through to node.
 node "$HELPER" "$EVENT_NAME" 2>> "$LOGFILE"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] node exit: $?" >> "$LOGFILE"
 exit 0
