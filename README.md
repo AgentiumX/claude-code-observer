@@ -262,14 +262,14 @@ Sessions inactive for 48+ hours are automatically cleaned up.
    ```json
    {
      "hooks": {
-       "SessionStart":     [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh SessionStart" }] }],
-       "Notification":     [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh Notification" }] }],
-       "Stop":             [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh Stop" }] }],
-       "SessionEnd":       [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh SessionEnd" }] }],
-       "PreToolUse":       [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh PreToolUse" }] }],
-       "PostToolUse":      [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh PostToolUse" }] }],
-       "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh UserPromptSubmit" }] }],
-       "PermissionRequest":[{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh PermissionRequest" }] }]
+       "SessionStart":     [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh SessionStart", "timeout": 30 }] }],
+       "Notification":     [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh Notification", "timeout": 30 }] }],
+       "Stop":             [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh Stop", "timeout": 30 }] }],
+       "SessionEnd":       [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh SessionEnd", "timeout": 30 }] }],
+       "PreToolUse":       [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh PreToolUse", "timeout": 30 }] }],
+       "PostToolUse":      [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh PostToolUse", "timeout": 30 }] }],
+       "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh UserPromptSubmit", "timeout": 30 }] }],
+       "PermissionRequest":[{ "hooks": [{ "type": "command", "command": "/path/to/hooks/claude_observer_hook.sh PermissionRequest", "timeout": 30 }] }]
      }
    }
    ```
