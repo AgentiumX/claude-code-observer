@@ -112,6 +112,7 @@ class RemotePoller:
                 )
                 self._procs[name] = proc
                 self._consume_stream(name, iter(proc.stdout.readline, ""))
+                backoff = 1  # 流正常工作过，下次重连从最短间隔起
                 proc.wait()
             except OSError:
                 pass
