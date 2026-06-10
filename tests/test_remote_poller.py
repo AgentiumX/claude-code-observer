@@ -96,6 +96,17 @@ def test_consume_stream_handles_split_across_chunks():
     assert {s["id"] for s in p.get_sessions()} == {"id1"}
 
 
+def test_consume_stream_returns_false_on_empty():
+    p = RemotePoller([{"name": "vm1", "host": "h", "user": "u"}])
+    assert p._consume_stream("vm1", iter([])) is False
+
+
+def test_consume_stream_returns_true_when_block_applied():
+    p = RemotePoller([{"name": "vm1", "host": "h", "user": "u"}])
+    got = p._consume_stream("vm1", iter(['{"sessions": {"id1": {"id": "id1"}}}\n' + DELIM + '\n']))
+    assert got is True
+
+
 def test_load_remotes_missing_file(tmp_path):
     assert load_remotes(tmp_path / "nope.json") == []
 

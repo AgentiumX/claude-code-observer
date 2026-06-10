@@ -104,8 +104,10 @@ class RemotePoller:
             return exists
 
     def _consume_stream(self, name, stream):
-        """从文本流（ssh stdout 的可迭代对象）读取并应用完整块。"""
+        """从文本流（ssh stdout 的可迭代对象）读取并应用完整块。
+        返回是否至少消费过一个块（用于判断本次连接是否真正工作过）。"""
         buffer = ""
+        consumed = False
         for chunk in stream:
             if not chunk:
                 continue
@@ -114,6 +116,8 @@ class RemotePoller:
             for block in blocks:
                 if block.strip():
                     self._apply_block(name, block)
+                    consumed = True
+        return consumed
 
     def _run_remote(self, remote):
         """常驻：起 ssh 流，断开则退避重连，直到 stop()。"""
@@ -127,8 +131,9 @@ class RemotePoller:
                     text=True, bufsize=1,
                 )
                 self._procs[name] = proc
-                self._consume_stream(name, iter(proc.stdout.readline, ""))
-                backoff = 1  # 流正常工作过，下次重连从最短间隔起
+                got_data = self._consume_stream(name, iter(proc.stdout.readline, ""))
+                if got_data:
+                    backoff = 1  # 这次连接真正工作过，下次从最短间隔起
                 proc.wait()
             except OSError:
                 pass

@@ -15,8 +15,8 @@ def _run(tmp_path, event, stdin_text, with_node=True):
         fake = bindir / "node"
         fake.write_text(
             "#!/bin/sh\n"
-            'printf "ARGS:%s\\n" "$*" > "%s"\n' % capture
-            + 'cat >> "%s"\n' % capture
+            f'printf "ARGS:%s\\n" "$*" > "{capture}"\n'
+            f'cat >> "{capture}"\n'
         )
         fake.chmod(0o755)
     # Prepend fake node dir so it takes priority over real node;

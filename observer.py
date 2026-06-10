@@ -480,7 +480,11 @@ def main():
     )
     window_ref[0] = win
 
-    webview.start(debug=False)
+    try:
+        webview.start(debug=False)
+    finally:
+        if poller is not None:
+            poller.stop()
 
 
 if __name__ == '__main__':
