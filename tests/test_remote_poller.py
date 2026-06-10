@@ -74,3 +74,23 @@ def test_parse_blocks_no_complete_block():
     blocks, remaining = parse_blocks('{"partial":')
     assert blocks == []
     assert remaining == '{"partial":'
+
+
+def test_consume_stream_applies_blocks():
+    p = RemotePoller([{"name": "vm1", "host": "h", "user": "u"}])
+    # 模拟 ssh stdout：分两次 yield，跨块边界
+    chunks = [
+        '{"sessions": {"id1": {"id": "id1"}}}\n' + DELIM + '\n',
+        '{"sessions": {"id1": {"id": "id1"}, "id2": {"id": "id2"}}}\n' + DELIM + '\n',
+    ]
+    p._consume_stream("vm1", iter(chunks))
+    ids = {s["id"] for s in p.get_sessions()}
+    assert ids == {"id1", "id2"}  # 最后一块为准
+
+
+def test_consume_stream_handles_split_across_chunks():
+    p = RemotePoller([{"name": "vm1", "host": "h", "user": "u"}])
+    # 一个块被拆到两次读取中
+    chunks = ['{"sessions": {"id1":', ' {"id": "id1"}}}\n' + DELIM + '\n']
+    p._consume_stream("vm1", iter(chunks))
+    assert {s["id"] for s in p.get_sessions()} == {"id1"}
