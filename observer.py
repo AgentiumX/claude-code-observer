@@ -158,6 +158,16 @@ html,body{
   margin-bottom:3px;
   display:flex;align-items:center;gap:6px;
 }
+.card-source{
+  display:inline-block;
+  margin-left:6px;
+  padding:1px 6px;
+  font-size:10px;
+  border-radius:6px;
+  background:rgba(100,180,255,0.18);
+  color:rgba(140,200,255,0.95);
+  vertical-align:middle;
+}
 .card-title{
   font-size:11px;font-weight:400;
   color:rgba(255,255,255,0.4);
@@ -316,9 +326,12 @@ function renderCard(s) {
   if (status === 'waiting' && s.notification_message) {
     notify = '<div class="card-notify">💬 ' + escapeHtml(s.notification_message) + '</div>';
   }
+  var source = (s.source && s.source !== 'local')
+    ? '<span class="card-source">' + escapeHtml(s.source) + '</span>'
+    : '';
   return '<div class="card" data-status="' + status + '">' +
     '<button class="card-close" data-id="' + escapeHtml(s.id || '') + '" title="Dismiss">&#215;</button>' +
-    '<div class="card-project">' + escapeHtml(s.project_name || 'Unknown') + '</div>' +
+    '<div class="card-project">' + escapeHtml(s.project_name || 'Unknown') + source + '</div>' +
     '<div class="card-title">' + escapeHtml(s.session_title || s.id || '') + '</div>' +
     '<div class="card-meta">' +
       '<span class="status-tag" data-status="' + status + '"><span class="dot"></span>' + label + '</span>' +
