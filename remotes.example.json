@@ -1,0 +1,11 @@
+{
+  "remotes": [
+    {
+      "name": "ubuntu-vm",
+      "host": "192.168.1.50",
+      "port": 22,
+      "user": "dev",
+      "identity_file": "C:/Users/you/.ssh/id_rsa"
+    }
+  ]
+}

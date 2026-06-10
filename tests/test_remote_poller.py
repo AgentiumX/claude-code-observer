@@ -1,5 +1,5 @@
 import json
-from remote_poller import build_ssh_command, parse_blocks, DELIM, RemotePoller
+from remote_poller import build_ssh_command, parse_blocks, DELIM, RemotePoller, load_remotes
 
 
 def _block(sessions):
@@ -94,3 +94,27 @@ def test_consume_stream_handles_split_across_chunks():
     chunks = ['{"sessions": {"id1":', ' {"id": "id1"}}}\n' + DELIM + '\n']
     p._consume_stream("vm1", iter(chunks))
     assert {s["id"] for s in p.get_sessions()} == {"id1"}
+
+
+def test_load_remotes_missing_file(tmp_path):
+    assert load_remotes(tmp_path / "nope.json") == []
+
+
+def test_load_remotes_valid(tmp_path):
+    p = tmp_path / "remotes.json"
+    p.write_text('{"remotes": [{"name": "vm1", "host": "h", "user": "u"}]}')
+    out = load_remotes(p)
+    assert len(out) == 1 and out[0]["name"] == "vm1"
+
+
+def test_load_remotes_malformed_returns_empty(tmp_path):
+    p = tmp_path / "remotes.json"
+    p.write_text("{ not json")
+    assert load_remotes(p) == []
+
+
+def test_load_remotes_skips_incomplete_entries(tmp_path):
+    p = tmp_path / "remotes.json"
+    p.write_text('{"remotes": [{"name": "ok", "host": "h", "user": "u"}, {"name": "bad"}]}')
+    out = load_remotes(p)
+    assert [r["name"] for r in out] == ["ok"]

@@ -9,6 +9,7 @@ import os
 import ctypes
 
 from state_manager import SessionState
+from remote_poller import RemotePoller, load_remotes
 
 HTML = r"""<!DOCTYPE html>
 <html>
@@ -430,7 +431,13 @@ def main():
         except Exception:
             pass
 
-    state = SessionState()
+    state_dir = os.path.join(os.path.expanduser('~'), '.claude-observer')
+    remotes = load_remotes(os.path.join(state_dir, 'remotes.json'))
+    poller = None
+    if remotes:
+        poller = RemotePoller(remotes)
+        poller.start()
+    state = SessionState(remote_poller=poller)
     state.cleanup_stale()  # Clean orphaned sessions on startup
     window_ref = [None]  # mutable ref for Api class
     api = Api(state, window_ref)

@@ -4,6 +4,7 @@ import json
 import subprocess
 import threading
 import time
+from pathlib import Path
 
 DELIM = "<<<OBSERVER_EOF>>>"
 
@@ -38,6 +39,22 @@ def parse_blocks(buffer):
     parts = buffer.split(DELIM)
     remaining = parts.pop()  # 最后一段尚未遇到分隔符
     return parts, remaining
+
+
+def load_remotes(path):
+    """读取 remotes.json。缺失/格式错/不完整条目均安全处理，返回有效 remote 列表。"""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError, ValueError):
+        return []
+    if not isinstance(data, dict):
+        return []
+    out = []
+    for r in data.get("remotes", []):
+        if r.get("name") and r.get("host") and r.get("user"):
+            out.append(r)
+    return out
 
 
 class RemotePoller:
