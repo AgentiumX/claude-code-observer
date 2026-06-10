@@ -16,11 +16,12 @@ STALE_AFTER_HOURS = 48
 class SessionState:
     """Manages Claude Code session state from the shared JSON file."""
 
-    def __init__(self):
+    def __init__(self, remote_poller=None):
         self._state_dir = Path.home() / '.claude-observer'
         self._state_file = self._state_dir / 'sessions.json'
         self._last_mtime = 0
         self._cache = {'sessions': {}}
+        self._remote_poller = remote_poller
 
     @property
     def state_file(self):
@@ -41,9 +42,15 @@ class SessionState:
             return {'sessions': {}}
 
     def get_sessions(self):
-        """Return list of active sessions, sorted by updated_at (newest first)."""
+        """Return active sessions (local + remote), newest first."""
         data = self._read_file()
-        sessions = list(data.get('sessions', {}).values())
+        sessions = []
+        for s in data.get('sessions', {}).values():
+            s = dict(s)
+            s['source'] = 'local'
+            sessions.append(s)
+        if self._remote_poller is not None:
+            sessions.extend(self._remote_poller.get_sessions())
         sessions.sort(key=lambda s: s.get('updated_at', ''), reverse=True)
         return sessions
 
@@ -95,17 +102,16 @@ class SessionState:
         return removed
 
     def remove_session(self, session_id):
-        """Remove a single session from the file. Returns True if it existed.
-
-        Triggered by the user dismissing a card. If the session is still active,
-        the next hook event will recreate it (accepted behavior).
-        """
+        """Dismiss a card. Local sessions are deleted from the file; remote
+        sessions are hidden in-memory via the poller until the next pull."""
         self._last_mtime = 0
         data = self._read_file()
         if session_id in data.get('sessions', {}):
             del data['sessions'][session_id]
             self._write_state(data)
             return True
+        if self._remote_poller is not None:
+            return self._remote_poller.hide(session_id)
         return False
 
     def _write_state(self, state):
