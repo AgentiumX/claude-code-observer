@@ -292,6 +292,8 @@ Sessions inactive for 48+ hours are automatically cleaned up.
 
 > Observer 对 VM 只读（仅 `cat` 会话文件），不修改 VM 上任何内容；不存储凭据，仅复用你已有的 SSH key。
 
+> 关闭远程卡片只是本地隐藏。若该 VM 会话仍然活跃，下次拉取（约 1 秒后）会重新出现——这是预期行为，卡片会在 VM 上会话真正结束后随之消失。
+
 ## License
 
 MIT
