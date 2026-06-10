@@ -1,4 +1,47 @@
-from remote_poller import build_ssh_command, parse_blocks, DELIM
+import json
+from remote_poller import build_ssh_command, parse_blocks, DELIM, RemotePoller
+
+
+def _block(sessions):
+    return json.dumps({"sessions": sessions})
+
+
+def test_apply_block_tags_source_and_merges():
+    p = RemotePoller([{"name": "vm1", "host": "h", "user": "u"}])
+    p._apply_block("vm1", _block({"id1": {"id": "id1", "status": "working"}}))
+    out = p.get_sessions()
+    assert len(out) == 1
+    assert out[0]["source"] == "vm1"
+    assert out[0]["id"] == "id1"
+
+
+def test_apply_block_replaces_previous_snapshot():
+    p = RemotePoller([{"name": "vm1", "host": "h", "user": "u"}])
+    p._apply_block("vm1", _block({"id1": {"id": "id1"}}))
+    p._apply_block("vm1", _block({"id2": {"id": "id2"}}))
+    ids = {s["id"] for s in p.get_sessions()}
+    assert ids == {"id2"}  # 新快照整体替换
+
+
+def test_invalid_block_keeps_last_snapshot():
+    p = RemotePoller([{"name": "vm1", "host": "h", "user": "u"}])
+    p._apply_block("vm1", _block({"id1": {"id": "id1"}}))
+    p._apply_block("vm1", "not json")  # 解析失败
+    assert {s["id"] for s in p.get_sessions()} == {"id1"}
+
+
+def test_hide_excludes_until_next_pull():
+    p = RemotePoller([{"name": "vm1", "host": "h", "user": "u"}])
+    p._apply_block("vm1", _block({"id1": {"id": "id1"}}))
+    assert p.hide("id1") is True
+    assert p.get_sessions() == []           # 立即隐藏
+    p._apply_block("vm1", _block({"id1": {"id": "id1"}}))  # 下次拉取仍在
+    assert {s["id"] for s in p.get_sessions()} == {"id1"}  # 重现
+
+
+def test_hide_unknown_id_returns_false():
+    p = RemotePoller([{"name": "vm1", "host": "h", "user": "u"}])
+    assert p.hide("nope") is False
 
 
 def test_build_ssh_command_full():
